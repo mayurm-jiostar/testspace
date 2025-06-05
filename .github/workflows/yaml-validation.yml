@@ -39,6 +39,7 @@ jobs:
           KEYS=$(git diff ${{ github.event.before }} ${{ github.sha }} -- $FILE | grep -E '^\+[^+]' | sed 's/^\+//' | awk -F: '{print $1}')
           
           if [ -n "$KEYS" ]; then
+            echo "Keys found in $FILE:"
             COMMENT+="**$FILE**:\n"
             for KEY in $KEYS; do
               COMMENT+="- $KEY\n"
