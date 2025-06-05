@@ -40,7 +40,7 @@ jobs:
         fi
         cat changed_yaml_files.txt
 
-      - name: Validate YAML and extract keys
+    - name: Validate YAML and extract keys
       id: validate_and_extract
       run: |
         COMMENT="### YAML Validation Status\n✅ All YAML files have been validated successfully.\n\n"
