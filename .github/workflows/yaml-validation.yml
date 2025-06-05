@@ -30,9 +30,14 @@ jobs:
         echo "Listing all YAML files in the repository:"
         find . -type f \( -name "*.yml" -o -name "*.yaml" \) -not -path "*/\.*" | tee yaml_files.txt
         
-        # Get changed files
+        # Get changed files - handle cases with no previous commits
         echo -e "\nListing changed YAML files:"
-        git diff --name-only HEAD~1 HEAD | grep -E '\.ya?ml$' || true > changed_yaml_files.txt
+        if git rev-parse HEAD~1 >/dev/null 2>&1; then
+          git diff --name-only HEAD~1 HEAD | grep -E '\.ya?ml$' || true > changed_yaml_files.txt
+        else
+          # If no previous commit exists, list all YAML files as changed
+          find . -type f \( -name "*.yml" -o -name "*.yaml" \) -not -path "*/\.*" > changed_yaml_files.txt
+        fi
         cat changed_yaml_files.txt
 
     - name: Validate YAML and extract keys
@@ -51,8 +56,13 @@ jobs:
             # Validate YAML
             if python -c "import yaml, sys; yaml.safe_load(open('$FILE'))"; then
               echo "✅ YAML validation passed for $FILE"
-              # Extract modified or added lines
-              DIFF_CONTENT=$(git diff HEAD~1 HEAD -- "$FILE" | grep -E '^\+[^+]' | sed 's/^+//' || true)
+              # Extract content for new files or modified files
+              if git rev-parse HEAD~1 >/dev/null 2>&1; then
+                DIFF_CONTENT=$(git diff HEAD~1 HEAD -- "$FILE" | grep -E '^\+[^+]' | sed 's/^+//' || true)
+              else
+                # If no previous commit, show entire file content
+                DIFF_CONTENT=$(cat "$FILE")
+              fi
               if [ -n "$DIFF_CONTENT" ]; then
                 COMMENT+="**$FILE**:\n\`\`\`yaml\n$DIFF_CONTENT\n\`\`\`\n\n"
               fi
