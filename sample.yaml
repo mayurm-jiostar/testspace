@@ -19,7 +19,7 @@ logging:
   file: /var/log/mywebapp.log
 
 features:
-  isEnabled: true
+  isEnabled: false
   enableSignup: true
   enableLogging: true
   maxConnections: 100
