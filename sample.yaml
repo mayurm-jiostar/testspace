@@ -1,0 +1,35 @@
+app:
+  name: MyWebApp
+  version: 2.0.1
+
+server:
+  host: 0.0.0.0
+  port: 8080
+
+database:
+  type: postgres
+  host: localhost
+  port: 5432
+  name: mywebapp_db
+  user: dbuser
+  password: securepassword
+
+logging:
+  level: INFO
+  file: /var/log/mywebapp.log
+
+features:
+  enableSignup: true
+  enableLogging: true
+  maxConnections: 100
+
+security:
+  jwtSecret: supersecretkey
+  tokenExpiration: 3600
+
+email:
+  smtpServer: smtp.example.com
+  smtpPort: 587
+  username: emailuser
+  password: emailpassword
+  fromAddress: no-reply@example.com
