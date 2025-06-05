@@ -19,10 +19,10 @@ logging:
   file: /var/log/mywebapp.log
 
 features:
-  isEnabled: false
+  isEnabled: true
+  version: v1
   enableSignup: true
   enableLogging: true
-  maxConnections: 100
 
 security:
   jwtSecret: supersecretkey
