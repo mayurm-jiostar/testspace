@@ -19,6 +19,7 @@ logging:
   file: /var/log/mywebapp.log
 
 features:
+  version: v1
   isEnabled: false
   enableSignup: true
   enableLogging: true
