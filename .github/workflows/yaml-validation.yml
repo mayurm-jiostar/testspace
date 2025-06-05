@@ -23,30 +23,49 @@ jobs:
       run: |
         python -m pip install pyyaml
 
+    - name: List YAML files
+      id: list_files
+      run: |
+        # Find all yaml files in the repository
+        echo "Listing all YAML files in the repository:"
+        find . -type f \( -name "*.yml" -o -name "*.yaml" \) -not -path "*/\.*" | tee yaml_files.txt
+        
+        # Get changed files
+        echo -e "\nListing changed YAML files:"
+        git diff --name-only HEAD~1 HEAD | grep -E '\.ya?ml$' || true > changed_yaml_files.txt
+        cat changed_yaml_files.txt
+
     - name: Validate YAML and extract keys
       id: validate_and_extract
       run: |
-        CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -E '\.ya?ml$' || true)
         COMMENT=""
-        if [ -z "$CHANGED_FILES" ]; then
+        if [ ! -s changed_yaml_files.txt ]; then
           echo "No changed YAML files."
-        else
-          for FILE in $CHANGED_FILES; do
-            echo "Processing $FILE"
-            # Validate YAML
-            python -c "import yaml, sys; yaml.safe_load(open('$FILE'))" || { echo "YAML validation failed for $FILE"; exit 1; }
-            # Extract modified or added lines (not just keys)
-            KEYS=$(git diff ${{ github.event.before }} ${{ github.sha }} -- $FILE | grep -E '^\+[^+]' | sed 's/^+//' | awk -F: '{print $1}')
-            if [ -n "$KEYS" ]; then
-              echo "Keys found in $FILE:"
-              COMMENT+="**$FILE**:\n"
-              for KEY in $KEYS; do
-                COMMENT+="- $KEY\n"
-              done
-            fi
-          done
+          echo "comment=No YAML files were changed" >> $GITHUB_OUTPUT
+          exit 0
         fi
-        echo "comment=$COMMENT" >> $GITHUB_OUTPUT
+
+        while IFS= read -r FILE; do
+          if [ -f "$FILE" ]; then
+            echo -e "\nValidating: $FILE"
+            # Validate YAML
+            if python -c "import yaml, sys; yaml.safe_load(open('$FILE'))"; then
+              echo "✅ YAML validation passed for $FILE"
+              # Extract modified or added lines
+              DIFF_CONTENT=$(git diff HEAD~1 HEAD -- "$FILE" | grep -E '^\+[^+]' | sed 's/^+//' || true)
+              if [ -n "$DIFF_CONTENT" ]; then
+                COMMENT+="**$FILE**:\n\`\`\`yaml\n$DIFF_CONTENT\n\`\`\`\n\n"
+              fi
+            else
+              echo "❌ YAML validation failed for $FILE"
+              exit 1
+            fi
+          fi
+        done < changed_yaml_files.txt
+        
+        echo "comment<<EOF" >> $GITHUB_OUTPUT
+        echo "$COMMENT" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
 
     - name: Post comment to PR
       uses: actions/github-script@v6
