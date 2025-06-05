@@ -1,7 +1,7 @@
 name: YAML Validation and Key Path Extraction
 
 on:
-  push:
+  pull_request:
     paths:
       - '**/*.yaml'
       - '**/*.yml'
