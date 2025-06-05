@@ -43,28 +43,26 @@ jobs:
     - name: Validate YAML and extract keys
       id: validate_and_extract
       run: |
-        COMMENT="### YAML Validation Status\n✅ All YAML files have been validated successfully.\n\n"
+        # Initialize comment content with validation status
+        COMMENT="### YAML Validation Status\\n✅ All YAML files have been validated successfully.\\n\\n"
         if [ ! -s changed_yaml_files.txt ]; then
           echo "No changed YAML files."
-          echo "comment=$COMMENT" >> $GITHUB_OUTPUT
+          echo "comment=${COMMENT}" >> $GITHUB_OUTPUT
           exit 0
         fi
 
         while IFS= read -r FILE; do
           if [ -f "$FILE" ]; then
             echo -e "\nValidating: $FILE"
-            # Validate YAML
             if python -c "import yaml, sys; yaml.safe_load(open('$FILE'))"; then
               echo "✅ YAML validation passed for $FILE"
-              # Extract content for new files or modified files
               if git rev-parse HEAD~1 >/dev/null 2>&1; then
                 DIFF_CONTENT=$(git diff HEAD~1 HEAD -- "$FILE" | grep -E '^\+[^+]' | sed 's/^+//' || true)
               else
-                # If no previous commit, show entire file content
                 DIFF_CONTENT=$(cat "$FILE")
               fi
               if [ -n "$DIFF_CONTENT" ]; then
-                COMMENT+="### Changed/Added Content in $FILE:\n\`\`\`yaml\n$DIFF_CONTENT\n\`\`\`\n\n"
+                COMMENT="${COMMENT}### Changed/Added Content in ${FILE}:\\n\`\`\`yaml\\n${DIFF_CONTENT}\\n\`\`\`\\n\\n"
               fi
             else
               echo "❌ YAML validation failed for $FILE"
@@ -73,47 +71,25 @@ jobs:
           fi
         done < changed_yaml_files.txt
         
-        echo "comment<<EOF" >> $GITHUB_OUTPUT
-        echo "$COMMENT" >> $GITHUB_OUTPUT
-        echo "EOF" >> $GITHUB_OUTPUT
+        echo "comment=${COMMENT}" >> $GITHUB_OUTPUT
 
-    # - name: Create commit status
-    #   uses: actions/github-script@v6
-    #   with:
-    #     github-token: ${{ secrets.GITHUB_TOKEN }}
-    #     script: |
-    #       const status = {
-    #         owner: context.repo.owner,
-    #         repo: context.repo.repo,
-    #         sha: context.sha,
-    #         state: 'success',
-    #         description: 'YAML validation completed',
-    #         context: 'YAML Validation'
-    #       };
-    #       await github.rest.repos.createCommitStatus(status);
-          
     - name: Post comment to PR
       uses: actions/github-script@v6
       if: success()
-      env:
-        COMMENT: ${{ steps.validate_and_extract.outputs.comment }}
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         script: |
           try {
-            const comment = process.env.COMMENT;
+            const comment = `${process.env.GITHUB_STEP_OUTPUT_COMMENT}`;
             if (comment && comment.trim()) {
               await github.rest.issues.createComment({
                 issue_number: context.issue.number,
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                body: comment
+                body: `**Welcome!** We look forward to reviewing your Pull Request shortly.\n\n${comment}`
               });
-              console.log('Successfully posted comment to PR');
-            } else {
-              console.log('No comment content to post');
             }
           } catch (error) {
             console.error('Error posting comment:', error);
-            core.setFailed(error.message);
+            throw error;
           }
