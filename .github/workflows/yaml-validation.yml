@@ -40,7 +40,7 @@ jobs:
         fi
         cat changed_yaml_files.txt
 
-    - name: Validate YAML and extract keys
+      - name: Validate YAML and extract keys
       id: validate_and_extract
       run: |
         COMMENT="### YAML Validation Status\n✅ All YAML files have been validated successfully.\n\n"
@@ -57,63 +57,25 @@ jobs:
             if python -c "import yaml, sys; yaml.safe_load(open('$FILE'))"; then
               echo "✅ YAML validation passed for $FILE"
               
-              # Create a temporary Python script to extract and compare keys
-              cat << 'EOF' > compare_yaml.py
-import yaml, sys, os
-from collections import OrderedDict
-
-def get_keys(yaml_content, prefix=''):
-    keys = []
-    if isinstance(yaml_content, dict):
-        for k, v in yaml_content.items():
-            full_key = f"{prefix}.{k}" if prefix else k
-            keys.append(full_key)
-            if isinstance(v, (dict, list)):
-                keys.extend(get_keys(v, full_key))
-    elif isinstance(yaml_content, list):
-        for i, item in enumerate(yaml_content):
-            if isinstance(item, (dict, list)):
-                keys.extend(get_keys(item, f"{prefix}[{i}]"))
-    return keys
-
-# Get old and new YAML content
-old_content = {}
-new_content = yaml.safe_load(open(sys.argv[1]))
-
-if os.path.exists(sys.argv[2]):
-    with open(sys.argv[2], 'r') as f:
-        old_content = yaml.safe_load(f) or {}
-
-old_keys = set(get_keys(old_content))
-new_keys = set(get_keys(new_content))
-
-# Generate change markers
-added = [f"+ {k}" for k in new_keys - old_keys]
-removed = [f"- {k}" for k in old_keys - new_keys]
-modified = [f"# {k}" for k in old_keys & new_keys]
-
-print("\n".join(sorted(added + removed + modified)))
-EOF
-
               # Extract keys and their changes
               if git rev-parse HEAD~1 >/dev/null 2>&1; then
                 OLD_FILE=$(git show HEAD~1:$FILE 2>/dev/null || echo "")
                 if [ -n "$OLD_FILE" ]; then
                   echo "$OLD_FILE" > old_yaml.tmp
-                  KEYS_DIFF=$(python compare_yaml.py "$FILE" "old_yaml.tmp")
+                  KEYS_DIFF=$(python .github/scripts/compare_yaml.py "$FILE" "old_yaml.tmp")
                 else
-                  KEYS_DIFF=$(python compare_yaml.py "$FILE" "nonexistent.yml")
+                  KEYS_DIFF=$(python .github/scripts/compare_yaml.py "$FILE" "nonexistent.yml")
                 fi
               else
-                KEYS_DIFF=$(python compare_yaml.py "$FILE" "nonexistent.yml")
+                KEYS_DIFF=$(python .github/scripts/compare_yaml.py "$FILE" "nonexistent.yml")
               fi
 
               if [ -n "$KEYS_DIFF" ]; then
                 COMMENT+="### Changed Keys in $FILE:\n\`\`\`diff\n$KEYS_DIFF\n\`\`\`\n\n"
               fi
               
-              # Cleanup temporary files
-              rm -f compare_yaml.py old_yaml.tmp
+              # Cleanup temporary file
+              rm -f old_yaml.tmp
             else
               echo "❌ YAML validation failed for $FILE"
               exit 1
