@@ -20,6 +20,7 @@ logging:
 
 features:
   isEnabled: false
+  config: v1
   enableSignup: true
   enableLogging: true
   maxConnections: 100
